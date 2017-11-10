@@ -25,36 +25,14 @@ def XYZtoLMS(XYZ, M):
     LMS = dot(M=M, img=XYZ)
     return LMS 
 
-def degreeOfAdaptation(F, L_A):
-    D = F * (1 - 1/3.6 * np.exp(x=-(L_A+42)/92))
-    return D
 
-def gainControl(LMS, D, LMS_w):
-    # LMS (3, n ,m)
-    # D (1)
-    # LMS_w (3)
 
-    # ((100/LMS_w - 1) * D + 1) * LMS_t
 
-    LMS_w_t = (100/LMS_w - 1) * D + 1
-    LMS_c = mul(v=LMS_w_t, img=LMS)
-    return LMS_c 
-
-def luminanceLevelAdaptationFactor(L_A):
-    k = 1 / (5 * L_A + 1)
-    F_L = 0.2 * k**4 * (5*L_A) + 0.1 * (1 - k**4)**2 * (5*L_A)**(1/3)
-    return F_L
-
-def LMS_ctoLMS_prime(LMS_c, M_CAT02, M_H):
-    M_CAT02_inv = np.linalg.inv(a=M_CAT02)
+def LMS_ctoLMS_prime(LMS_c, M_CAT02_inv, M_H):
     XYZ_c = dot(M=M_CAT02_inv, img=LMS_c)
     LMS_prime = dot(M=M_H, img=XYZ_c)
     return LMS_prime
 
-def compression(LMS_prime, F_L):
-    t = (F_L * LMS_prime / 100)**0.42
-    LMS_a_prime = (400 * t) / (27.13 + t) + 0.1
-    return LMS_a_prime
 
 
 def pow(exponent, img):
@@ -77,3 +55,33 @@ def gammaCorrection(RGB_n, gamma):
 def RGB_ltoXYZ(RGB_l, M):
     XYZ = dot(M=M, img=RGB_l)
     return XYZ
+
+
+def opponentColorConversion(LMS_a_prime):
+    C1 = LMS_a_prime[0] - LMS_a_prime[1]
+    C2 = LMS_a_prime[1] - LMS_a_prime[2]
+    C3 = LMS_a_prime[2] - LMS_a_prime[0]    
+
+    A = ()
+    return
+# def luminanceLevelAdaptationFactor(L_A):
+#     k = 1 / (5 * L_A + 1)
+#     F_L = 0.2 * k**4 * (5*L_A) + 0.1 * (1 - k**4)**2 * (5*L_A)**(1/3)
+#     return F_L
+# def degreeOfAdaptation(F, L_A):
+#     D = F * (1 - 1/3.6 * np.exp(x=-(L_A+42)/92))
+#     return D
+# def gainControl(LMS, D, LMS_w):
+#     # LMS (3, n ,m)
+#     # D (1)
+#     # LMS_w (3)
+
+#     # ((100/LMS_w - 1) * D + 1) * LMS_t
+
+#     LMS_w_t = (100/LMS_w - 1) * D + 1
+#     LMS_c = mul(v=LMS_w_t, img=LMS)
+#     return LMS_c 
+# def compression(LMS_prime, F_L):
+#     t = (F_L * LMS_prime / 100)**0.42
+#     LMS_a_prime = (400 * t) / (27.13 + t) + 0.1
+#     return LMS_a_prime
