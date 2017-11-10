@@ -113,9 +113,10 @@ class CIECAM02:
 
         N_bb = self.N_bb(self.n())
         A = (2*LMS_a_prime[0] + LMS_a_prime[1] + 1/20*LMS_a_prime[2] - 0.305) * N_bb
-        ab = ut.dot(M=M_Tab, img=LMS_a_prime)
+        a = LMS_a_prime[0] - 12/11*LMS_a_prime[1] + 1/11*LMS_a_prime[2]
+        b = 1/9*LMS_a_prime[0] + 1/9*LMS_a_prime[1] - 2/9*LMS_a_prime[2]
 
-        return (A, ab)
+        return (A, a. b)
 
     def computePerceptualAttributes(self, A, ab):
         n = self.n()

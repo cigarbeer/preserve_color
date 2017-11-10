@@ -16,7 +16,6 @@ def mul(v, img):
 
 def pow(exponent, img):
     result = np.power(img, exponent)
-
     return result
 
 
