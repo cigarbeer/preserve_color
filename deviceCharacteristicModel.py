@@ -2,21 +2,22 @@ import numpy as np
 import util as ut
 import deviceCharacteristic as dch 
 
+def normalizeRGB(RGB):
+    piexlSum = np.sum(a=RGB, axis=2)
+    RGB_t = np.moveaxis(a=RGB, source=-1, destination=0)
+    RGB_n_t = np.divide(RGB_t, piexlSum)
+    RGB_n = np.moveaxis(a=RGB_n_t, source=0, destination=-1)
+    return RGB_n 
+
+def gammaCorrection(RGB_n, gamma):
+    RGB_l = ut.pow(exponent=gamma, img=RGB_n)
+    return RGB_l
+
+def spaceConversion(RGB_l, M):
+    XYZ = ut.dot(M=M, img=RGB_l)
+    return XYZ
 
 def deviceCharacteristicModel(RGB):
-    def normalizeRGB(RGB):
-        piexlSum = np.sum(a=RGB, axis=0)
-        RGB_n = np.divide(RGB, piexlSum)
-        return RGB_n 
-
-    def gammaCorrection(RGB_n, gamma):
-        RGB_l = ut.pow(exponent=gamma, img=RGB_n)
-        return RGB_l
-
-    def spaceConversion(RGB_l, M):
-        XYZ = ut.dot(M=M, img=RGB_l)
-        return XYZ
-
     RGB_n = normalizeRGB(RGB)
     RGB_l_f = gammaCorrection(RGB_n=RGB_n, gamma=dch.gamma_f)
     RGB_l_l = gammaCorrection(RGB_n=RGB_n, gamma=dch.gamma_l)
