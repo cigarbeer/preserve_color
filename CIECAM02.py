@@ -9,7 +9,7 @@ class CIECAM02:
     ])
 
     M_CAT02_inv = np.array([
-        [ 1.096124  -0.278869, 0.182745],
+        [ 1.096124, -0.278869, 0.182745],
         [ 0.454369,  0.473533, 0.072098],
         [-0.009628, -0.005698, 1.015326]
     ])
@@ -49,7 +49,9 @@ class CIECAM02:
         return
 
     def process(self, XYZ):
-            return
+        c, N_c, F = self.determineParameters()
+
+        return
 
 
     def determineParameters(self):
@@ -68,7 +70,7 @@ class CIECAM02:
             return (LMS, LMS_w)
 
         def degreeOfAdaptation(F, L_A):
-            D = F * (1 - 1/3.6 * np.exp(x=-(L_A+42)/92))
+            D = F * (1 - 1/3.6 * np.exp(-(L_A+42)/92))
             return D
 
         def gainControl(LMS, LMS_w, D):
@@ -79,11 +81,11 @@ class CIECAM02:
         LMS, LMS_w = spaceConversion(XYZ=XYZ, XYZ_w=XYZ_w, M=self.M_CAT02)
         D = degreeOfAdaptation(F=F, L_A=self.L_A)
         LMS_c = gainControl(LMS=LMS, LMS_w=LMS_w, D=D)
-
+        
         return LMS_c
 
 
-    def compression(self, LMS_c, F_L):
+    def compression(self, LMS_c):
         def luminanceLevelAdaptationFactor(L_A):
             k = 1 / (5 * L_A + 1)
             F_L = 0.2 * k**4 * (5 * L_A) + 0.1 * (1 - k**4)**2 * (5 * L_A)**(1 / 3)
@@ -106,21 +108,17 @@ class CIECAM02:
         return LMS_a_prime
 
     def opponentColorConversion(self, LMS_a_prime):
-        M_ab = np.array([
-            [  1, -12/11, 1/11],
-            [1/9,    1/9, -2/9]
-        ])
-
         N_bb = self.N_bb(self.n())
         A = (2*LMS_a_prime[0] + LMS_a_prime[1] + 1/20*LMS_a_prime[2] - 0.305) * N_bb
         a = LMS_a_prime[0] - 12/11*LMS_a_prime[1] + 1/11*LMS_a_prime[2]
         b = 1/9*LMS_a_prime[0] + 1/9*LMS_a_prime[1] - 2/9*LMS_a_prime[2]
 
-        return (A, a. b)
+        return (A, a, b)
 
     def computePerceptualAttributes(self, A, ab):
         n = self.n()
         z = self.z(n)
+        
         return
 
 
