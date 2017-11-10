@@ -46,20 +46,7 @@ class CIECAM02:
         self.L_A = L_A
         self.Y_b = Y_b
         self.s_R = s_R
-        self.n = None
-        self.N_cb = None
-        self.N_cc = None
-        self.z = None
-        self.F_L = None
-
-        init(XYZ_w, L_A, Y_b, s_R)
-
-        def init(XYZ_w, L_A, Y_b, s_R):
-            self.n = Y_b / XYZ_w[1]
-            self.N_cb = 0.725 * (1 / self.n)**0.2
-            self.N_bb = self.N_cb
-            self.z = 1.48 + self.n**0.5
-            return
+        return
 
     def process(self, XYZ):
             return
@@ -119,13 +106,32 @@ class CIECAM02:
         return LMS_a_prime
 
     def opponentColorConversion(self, LMS_a_prime):
-        M_C = np.array([
-            [ 1, -1,  0],
-            [ 0,  1, -1],
-            [-1,  0,  1]
-        ])
-        M_Aab = np.array([
-            
+        M_ab = np.array([
+            [  1, -12/11, 1/11],
+            [1/9,    1/9, -2/9]
         ])
 
-        C = ut.dot(M=M_C, img=LMS_a_prime)
+        N_bb = self.N_bb(self.n())
+        A = (2*LMS_a_prime[0] + LMS_a_prime[1] + 1/20*LMS_a_prime[2] - 0.305) * N_bb
+        ab = ut.dot(M=M_Tab, img=LMS_a_prime)
+
+        return (A, ab)
+
+    def computePerceptualAttributes(self, A, ab):
+        n = self.n()
+        z = self.z(n)
+        return
+
+
+    def n(self):
+        return self.Y_b / self.XYZ_w[1]
+
+    def N_cb(self, n):
+        return 0.725 * (1 / n)**0.2
+
+    def N_bb(self, n):
+        return self.N_cb(n)
+
+    def z(self, n):
+        return 1.48 + n**0.5
+
