@@ -77,15 +77,16 @@ class CIECAM02:
             LMS_w_t = (100/LMS_w - 1) * D + 1
             LMS_c = ut.mul(v=LMS_w_t, img=LMS)
             return LMS_c
-
+        
         LMS, LMS_w = spaceConversion(XYZ=XYZ, XYZ_w=XYZ_w, M=self.M_CAT02)
         D = degreeOfAdaptation(F=F, L_A=self.L_A)
         LMS_c = gainControl(LMS=LMS, LMS_w=LMS_w, D=D)
+        LMS_w_c = gainControl(LMS=LMS_w, LMS_w=LMS_w, D=D)
         
-        return LMS_c
+        return (LMS_c, LMS_w_c)
 
 
-    def compression(self, LMS_c):
+    def compression(self, LMS_c, LMS_w_c):
         def luminanceLevelAdaptationFactor(L_A):
             k = 1 / (5 * L_A + 1)
             F_L = 0.2 * k**4 * (5 * L_A) + 0.1 * (1 - k**4)**2 * (5 * L_A)**(1 / 3)
@@ -105,21 +106,36 @@ class CIECAM02:
         LMS_prime = spaceConversion(LMS_c=LMS_c, M_CAT02_inv=self.M_CAT02_inv, M_H=self.M_H)
         LMS_a_prime = nonLinearCompression(LMS_prime=LMS_prime, F_L=F_L)
 
-        return LMS_a_prime
+        LMS_w_prime = spaceConversion(LMS_c=LMS_w_c, M_CAT02_inv=self.M_CAT02_inv, M_H=self.M_H)
+        LMS_w_a_prime = nonLinearCompression(LMS_prime=LMS_w_prime, F_L=F_L)
 
-    def opponentColorConversion(self, LMS_a_prime):
+
+        return (LMS_a_prime, LMS_w_a_prime)
+
+    def opponentColorConversion(self, LMS_a_prime, LMS_w_a_prime):
         N_bb = self.N_bb(self.n())
         A = (2*LMS_a_prime[0] + LMS_a_prime[1] + 1/20*LMS_a_prime[2] - 0.305) * N_bb
         a = LMS_a_prime[0] - 12/11*LMS_a_prime[1] + 1/11*LMS_a_prime[2]
         b = 1/9*LMS_a_prime[0] + 1/9*LMS_a_prime[1] - 2/9*LMS_a_prime[2]
+        A_w = (2*LMS_w_a_prime[0] + LMS_w_a_prime[1] + 1/20*LMS_w_a_prime[2] - 0.305) * N_bb
+        return (A, a, b, A_w)
 
-        return (A, a, b)
-
-    def computePerceptualAttributes(self, A, ab):
+    def computePerceptualAttributes(self, A, a, b, A_w, c, N_c, LMS_a_prime):
         n = self.n()
         z = self.z(n)
-        
-        return
+        N_cb = self.N_cb(n)
+
+        h = ut.angle(a, b)
+
+        e_t = (1/4 * (np.cos(np.pi/180*h+2) + 3.8)).reshape((-1, 1))
+
+        J = 100 * (A / A_w)**(c * z)
+
+        t = (50000/13 * N_c * N_cb * e_t * (a**2 + b**2)**0.5) / (LMS_a_prime[0] + LMS_a_prime[1] + 21/20*LMS_a_prime[2])
+
+        C = t**0.9 * (0.01 * J)**0.5 * (1.64 - 0.29**n)**0.73
+
+        return (h, J, C)
 
 
     def n(self):

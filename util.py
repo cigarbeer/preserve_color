@@ -18,6 +18,13 @@ def pow(exponent, img):
     result = np.power(img, exponent)
     return result
 
+def angle(u, v):
+    inner = np.sum(np.multiply(u, v), axis=-1)
+    outer = np.linalg.norm(np.cross(u, v), axis=-1)
+    ang_rad = np.arctan2(outer, inner)
+    ang = np.degrees(ang_rad)
+    return ang
+
 
 # def XYZtoLMS(XYZ, M):
 #     # XYZ (3, n, m)

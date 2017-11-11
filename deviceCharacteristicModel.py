@@ -23,8 +23,8 @@ def deviceCharacteristicModel(RGB):
     RGB_l_l = gammaCorrection(RGB_n=RGB_n, gamma=dch.gamma_l)
     XYZ_f = spaceConversion(RGB_l=RGB_l_f, M=dch.M_f)
     XYZ_l = spaceConversion(RGB_l=RGB_l_l, M=dch.M_l)
-    RGB_l_w = np.array([1, 1, 1])
-    XYZ_f_w = spaceConversion(RGB_l=RGB_l_w, M=dch.M_f)
-    XYZ_l_w = spaceConversion(RGB_l=RGB_l_w, M=dch.M_l)
+    RGB_w_l = np.array([1, 1, 1])
+    XYZ_w_f = spaceConversion(RGB_l=RGB_w_l, M=dch.M_f)
+    XYZ_w_l = spaceConversion(RGB_l=RGB_w_l, M=dch.M_l)
 
-    return (XYZ_f, XYZ_l, XYZ_f_w, XYZ_l_w)
+    return (XYZ_f, XYZ_l, XYZ_w_f, XYZ_w_l)
