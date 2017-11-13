@@ -170,16 +170,23 @@ class CIECAM02:
         N_bb = self.N_bb(n=n)
         N_cb = self.N_cb(n=n)
         z = self.z(n=n)
+        F_L = self.luminanceLevelAdaptationFactor(L_A=L_A)
+        D = self.degreeOfAdaptation(F=F, L_A=L_A)
+        LMS_white = self.spaceConversion_XYZ_to_LMS(XYZ=XYZ_white, M_CAT02=self.M_CAT02)
         LMS_white_c = self.chromaticTransfrom(XYZ=XYZ_white, XYZ_white=XYZ_white, M_CAT02=self.M_CAT02, F=F, L_A=L_A)
         LMS_white_a_prime = self.compression(LMS=LMS_white_c, M_CAT02_inv=self.M_CAT02_inv, M_H=self.M_H, L_A=L_A)
         A_white = self.achromaticResponse(LMS_a_prime=LMS_white_a_prime, N_bb=N_bb)
-        t_inv = self.t_inv(C, J, n)
+        t = self.t_inv(C, J, n)
         e_t = self.e_t(h)
         A = self.A_inv(A_white=A_white, J=J, c=c, z=z)
-        a, b = self.ab_inv(t=t_inv, e_t=e_t, h=h, A=A, N_c=N_c, N_cb=N_cb, N_bb=N_bb)
-        
-
-        return 
+        a, b = self.ab_inv(t=t, e_t=e_t, h=h, A=A, N_c=N_c, N_cb=N_cb, N_bb=N_bb)
+        LMS_a_prime = self.LMS_a_prime_inv(A=A, a=a, b=b, N_bb=N_bb, M_Aab_to_LMS_a_prime=self.M_Aab_to_LMS_a_prime)
+        LMS_prime = self.LMS_prime_inv(LMS_a_prime=LMS_a_prime, F_L=F_L)
+        XYZ_c = self.spaceConversion_HPE_to_XYZ(LMS_prime=LMS_prime, M_H_inv=self.M_H_inv)
+        LMS_c = self.spaceConversion_XYZ_to_LMS(XYZ=XYZ_c, M_CAT02=self.M_CAT02)
+        LMS = self.gainControl_inv(LMS=LMS_c, LMS_white=LMS_white, D=D)
+        XYZ_enhanced = self.spaceConversion_LMS_to_XYZ(LMS=LMS, M_CAT02_inv=self.M_CAT02_inv)
+        return XYZ_enhanced
 
     def t(self, N_c, N_cb, e_t, a, b, LMS_a_prime):
         result = (50000/13 * N_c * N_cb * e_t * (a**2 + b**2)**0.5) / (LMS_a_prime[:, :, 0] + LMS_a_prime[:, :, 1] + 21/20*LMS_a_prime[:, :, 2])
@@ -199,7 +206,7 @@ class CIECAM02:
 
     def ab_inv(self, t, e_t, h, A, N_c, N_cb, N_bb):
         p1 = (50000/13 * N_c * N_cb * e_t) / t 
-        p1 = (A / N_bb) + 0.305
+        p2 = (A / N_bb) + 0.305
         p3 = 21 / 20
         
         sin_h = np.sin(h)
@@ -230,30 +237,26 @@ class CIECAM02:
 
         return (a, b)
 
-    def LMS_a_prime_e(self, A, a, b, N_bb, M_Aab_to_LMS_a_prime):
+    def LMS_a_prime_inv(self, A, a, b, N_bb, M_Aab_to_LMS_a_prime):
         x = A / N_bb + 0.305
         xab = np.stack([x, a, b], axis=-1)
         result = ut.dot(M=M_Aab_to_LMS_a_prime, img=xab)
         return result
 
-    def LMS_prime_e(self, LMS_a_prime, F_L):
+    def LMS_prime_inv(self, LMS_a_prime, F_L):
         result = (100 / F_L) * ((27.13*(LMS_a_prime-0.1)) / (400 - (LMS_a_prime-0.1)))**(1 / 0.42)
         return result
 
-    def LMS_c_e(self, LMS_prime, M_H_inv, M_CAT02):
-        XYZ_c = ut.dot(M=M_H_inv, img=LMS_prime)
-        result = ut.dot(M=M_CAT02, img=XYZ_c)
-        return result
+    def spaceConversion_HPE_to_XYZ(self, LMS_prime, M_H_inv):
+        XYZ = ut.dot(M=M_H_inv, img=LMS_prime)
+        return XYZ
 
-    def LMS_e(self, LMS_c, LMS_w, D):
-        c = 1 / ((100/LMS_w - 1) * D + 1)
-        result = c * LMS_c
-        return result
-    
-    def XYZ_e(self, LMS, M_CAT02_inv):
-        result = ut.dot(M=M_CAT02_inv, img=LMS)
-        return result
 
+    def gainControl_inv(self, LMS, LMS_white, D):
+        c = 1 / ((100/LMS_white - 1) * D + 1)
+        result = c * LMS
+        return result
+  
     def n(self, Y_b, Y_w):
         return Y_b / Y_w
 
