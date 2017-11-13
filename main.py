@@ -1,25 +1,40 @@
 import image as im
 import numpy as np 
-import deviceCharacteristicModel as dchm
+from deviceCharacteristicModel import DeviceCharacteristicModel
 from CIECAM02 import CIECAM02
 import util as ut
 
 import sys 
 
 
-# if __name__ == '__main__':
+if __name__ == '__main__':
+    # read image
+    fileName = './images.jpeg'
+    img = im.readImg(fileName)
+
+    # device characteristic modeling
+    dchm = DeviceCharacteristicModel()
+    dchm.input(img=img)
+
+    # ciecam02 modeling
+    L_A_forward = 60
+    Y_b_forward = 25 
+    s_R_forward = 1
+    ciecam = CIECAM02()
+    ciecam.forward(
+        XYZ=dchm.XYZ_full_backlight, 
+        XYZ_white=dchm.XYZ_white_full_backlight, 
+        L_A=L_A_forward, 
+        Y_b=Y_b_forward, 
+        s_R=s_R_forward
+    )
+    
+
+    
 
 
-fileName = './images.jpeg'
-RGB = im.readImg(fileName)
-XYZ_f, XYZ_l, XYZ_w_f, XYZ_w_l = dchm.deviceCharacteristicModel(RGB)
-cie = CIECAM02(XYZ_w=XYZ_w_f, L_A=60, Y_b=25, s_R=1)
 
 
 
 
-c, N_c, F = cie.determineParameters()
-LMS_c, LMS_w_c = cie.chromaticTransfrom(XYZ=XYZ_f, XYZ_w=XYZ_w_f, F=F)
-LMS_a_prime, LMS_w_a_prime = cie.compression(LMS_c=LMS_c, LMS_w_c=LMS_w_c)
-A, a, b, A_w = cie.opponentColorConversion(LMS_a_prime=LMS_a_prime, LMS_w_a_prime=LMS_w_a_prime)
-h, J, C = cie.computePerceptualAttributes(A=A, a=a, b=b, A_w=A_w, c=c, N_c=N_c, LMS_a_prime=LMS_a_prime)
+

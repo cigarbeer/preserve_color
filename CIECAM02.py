@@ -20,6 +20,18 @@ class CIECAM02:
         [ 0.00000, 0.00000,  1.00000]
     ])
 
+    M_H_inv = np.array([
+        [1.910197, -1.112124,  0.201908],
+        [0.370950,  0.629054, -0.000008],
+        [0.000000,  0.000000,  1.000000]
+    ])
+
+    M_Aab_to_LMS_a_prime = np.array([
+        [0.32787,  0.32145,  0.20527], 
+        [0.32787, -0.63507, -0.18603],
+        [0.32787, -0.15681, -4.49038]
+    ])
+
     c = np.array([
         0.690, # avg
         0.590, # dim
@@ -41,105 +53,209 @@ class CIECAM02:
     RGB_w = np.array([1, 1, 1])
 
 
-    def __init__(self, XYZ_w, L_A=60, Y_b=25, s_R=0):
-        self.XYZ_w = XYZ_w
-        self.L_A = L_A
-        self.Y_b = Y_b
-        self.s_R = s_R
+    def __init__(self):
         return
 
-    def process(self, XYZ):
-        c, N_c, F = self.determineParameters()
+    def forward(self, XYZ, XYZ_white, L_A, Y_b, s_R):
+        c, N_c, F = self.determineParameters(s_R)
 
-        return
+        n = self.n(Y_b=Y_b, Y_w=XYZ_white[0, 0, 1])
+        N_bb = self.N_bb(n=n)
+        N_cb = self.N_cb(n=n)
+        z = self.z(n=n)
 
+        LMS_c = self.chromaticTransfrom(XYZ=XYZ, XYZ_white=XYZ_white, M_CAT02=self.M_CAT02, F=F, L_A=L_A)
+        LMS_a_prime = self.compression(LMS=LMS_c, M_CAT02_inv=self.M_CAT02_inv, M_H=self.M_H, L_A=L_A)
+        A, a, b = self.opponentColorConversion(LMS_a_prime=LMS_a_prime, N_bb=N_bb)
 
-    def determineParameters(self):
-        if self.s_R > 0.2:
+        LMS_white_c = self.chromaticTransfrom(XYZ=XYZ_white, XYZ_white=XYZ_white, M_CAT02=self.M_CAT02, F=F, L_A=L_A)
+        LMS_white_a_prime = self.compression(LMS=LMS_white_c, M_CAT02_inv=self.M_CAT02_inv, M_H=self.M_H, L_A=L_A)
+        A_white, a_white, b_white = self.opponentColorConversion(LMS_a_prime=LMS_white_a_prime, N_bb=N_bb)
+
+        h, J, C = self.computePerceptualAttributes(A=A, a=a, b=b, A_white=A_white, c=c, N_c=N_c, LMS_a_prime=LMS_a_prime, n=n, z=z, N_cb=N_cb, Y_b=Y_b, Y_w=XYZ_white[0, 0, 1])
+        
+        return (h, J, C)
+
+    def determineParameters(self, s_R):
+        if s_R > 0.2:
             return (self.c[0], self.N_c[0], self.F[0])
-        if self.s_R > 0:
+        if s_R > 0:
             return (self.c[1], self.N_c[1], self.F[1])
-        if self.s_R == 0:
+        if s_R == 0:
             return (self.c[2], self.N_c[2], self.F[2])
         return
 
-    def chromaticTransfrom(self, XYZ, XYZ_w, F):
-        def spaceConversion(XYZ, XYZ_w, M):
-            LMS = ut.dot(M=M, img=XYZ)
-            LMS_w = ut.dot(M=M, img=XYZ_w)
-            return (LMS, LMS_w)
+    def chromaticTransfrom(self, XYZ, XYZ_white, M_CAT02, F, L_A):
+        LMS = self.spaceConversion_XYZ_to_LMS(XYZ=XYZ, M_CAT02=M_CAT02)
+        LMS_white = self.spaceConversion_XYZ_to_LMS(XYZ=XYZ_white, M_CAT02=M_CAT02)
+        D = self.degreeOfAdaptation(F=F, L_A=L_A)
+        LMS_c = self.gainControl(LMS=LMS, LMS_white=LMS_white, D=D)
+        return LMS_c
 
-        def degreeOfAdaptation(F, L_A):
-            D = F * (1 - 1/3.6 * np.exp(-(L_A+42)/92))
-            return D
+    def compression(self, LMS, M_CAT02_inv, M_H, L_A):
+        F_L = self.luminanceLevelAdaptationFactor(L_A=L_A)
+        XYZ = self.spaceConversion_LMS_to_XYZ(LMS=LMS, M_CAT02_inv=M_CAT02_inv)
+        LMS_prime = self.spaceConversion_XYZ_to_HPE(XYZ=XYZ, M_H=M_H)
+        LMS_a_prime = self.nonLinearCompression(LMS_prime=LMS_prime, F_L=F_L)
+        return LMS_a_prime
 
-        def gainControl(LMS, LMS_w, D):
-            LMS_w_t = (100/LMS_w - 1) * D + 1
-            LMS_c = ut.mul(v=LMS_w_t, img=LMS)
-            return LMS_c
-        
-        LMS, LMS_w = spaceConversion(XYZ=XYZ, XYZ_w=XYZ_w, M=self.M_CAT02)
-        D = degreeOfAdaptation(F=F, L_A=self.L_A)
-        LMS_c = gainControl(LMS=LMS, LMS_w=LMS_w, D=D)
-        LMS_w_c = gainControl(LMS=LMS_w, LMS_w=LMS_w, D=D)
-        
-        return (LMS_c, LMS_w_c)
+    def opponentColorConversion(self, LMS_a_prime, N_bb):
+        A = self.achromaticResponse(LMS_a_prime=LMS_a_prime, N_bb=N_bb)
+        a = LMS_a_prime[:, :, 0] - 12/11*LMS_a_prime[:, :, 1] + 1/11*LMS_a_prime[:, :, 2]
+        b = 1/9*LMS_a_prime[:, :, 0] + 1/9*LMS_a_prime[:, :, 1] - 2/9*LMS_a_prime[:, :, 2]
+        return (A, a, b)
 
+    def computePerceptualAttributes(self, A, a, b, A_white, c, N_c, LMS_a_prime, n, z, N_cb, Y_b, Y_w):
+        h = self.hue(a=a, b=b)
+        J = self.lightness(A=A, A_white=A_white, c=c, z=z)
 
-    def compression(self, LMS_c, LMS_w_c):
-        def luminanceLevelAdaptationFactor(L_A):
-            k = 1 / (5 * L_A + 1)
-            F_L = 0.2 * k**4 * (5 * L_A) + 0.1 * (1 - k**4)**2 * (5 * L_A)**(1 / 3)
-            return F_L
+        n = self.n(Y_b, Y_w)
+        e_t = self.e_t(n)
+        t = self.t(N_c=N_c, N_cb=N_cb, e_t=e_t, a=a, b=b, LMS_a_prime=LMS_a_prime)
 
-        def spaceConversion(LMS_c, M_CAT02_inv, M_H):
-            XYZ_c = ut.dot(M=M_CAT02_inv, img=LMS_c)
-            LMS_prime = ut.dot(M=M_H, img=XYZ_c)
-            return LMS_prime
-
-        def nonLinearCompression(LMS_prime, F_L):
-            t = (F_L * LMS_prime / 100)**0.42
-            LMS_a_prime = (400 * t) / (27.13 + t) + 0.1
-            return LMS_a_prime
-
-        F_L = luminanceLevelAdaptationFactor(L_A=self.L_A)
-        LMS_prime = spaceConversion(LMS_c=LMS_c, M_CAT02_inv=self.M_CAT02_inv, M_H=self.M_H)
-        LMS_a_prime = nonLinearCompression(LMS_prime=LMS_prime, F_L=F_L)
-
-        LMS_w_prime = spaceConversion(LMS_c=LMS_w_c, M_CAT02_inv=self.M_CAT02_inv, M_H=self.M_H)
-        LMS_w_a_prime = nonLinearCompression(LMS_prime=LMS_w_prime, F_L=F_L)
-
-
-        return (LMS_a_prime, LMS_w_a_prime)
-
-    def opponentColorConversion(self, LMS_a_prime, LMS_w_a_prime):
-        N_bb = self.N_bb(self.n())
-        A = (2*LMS_a_prime[0] + LMS_a_prime[1] + 1/20*LMS_a_prime[2] - 0.305) * N_bb
-        a = LMS_a_prime[0] - 12/11*LMS_a_prime[1] + 1/11*LMS_a_prime[2]
-        b = 1/9*LMS_a_prime[0] + 1/9*LMS_a_prime[1] - 2/9*LMS_a_prime[2]
-        A_w = (2*LMS_w_a_prime[0] + LMS_w_a_prime[1] + 1/20*LMS_w_a_prime[2] - 0.305) * N_bb
-        return (A, a, b, A_w)
-
-    def computePerceptualAttributes(self, A, a, b, A_w, c, N_c, LMS_a_prime):
-        n = self.n()
-        z = self.z(n)
-        N_cb = self.N_cb(n)
-
-        h = ut.angle(a, b)
-
-        e_t = (1/4 * (np.cos(np.pi/180*h+2) + 3.8)).reshape((-1, 1))
-
-        J = 100 * (A / A_w)**(c * z)
-
-        t = (50000/13 * N_c * N_cb * e_t * (a**2 + b**2)**0.5) / (LMS_a_prime[0] + LMS_a_prime[1] + 21/20*LMS_a_prime[2])
-
-        C = t**0.9 * (0.01 * J)**0.5 * (1.64 - 0.29**n)**0.73
-
+        C = self.chroma(t=t, J=J, n=n)
         return (h, J, C)
 
 
-    def n(self):
-        return self.Y_b / self.XYZ_w[1]
+    def spaceConversion_XYZ_to_LMS(self, XYZ, M_CAT02):
+        LMS = ut.dot(M=M_CAT02, img=XYZ)
+        return LMS
+
+    def degreeOfAdaptation(self, F, L_A):
+        D = F * (1 - 1/3.6 * np.exp(-(L_A+42)/92))
+        return D
+
+    def gainControl(self, LMS, LMS_white, D):
+        LMS_white_t = (100/LMS_white - 1) * D + 1
+        LMS_c = ut.mul(v=LMS_white_t, img=LMS)
+        return LMS_c
+
+    def luminanceLevelAdaptationFactor(self, L_A):
+        k = 1 / (5 * L_A + 1)
+        F_L = 0.2 * k**4 * (5 * L_A) + 0.1 * (1 - k**4)**2 * (5 * L_A)**(1 / 3)
+        return F_L
+
+    def spaceConversion_LMS_to_XYZ(self, LMS, M_CAT02_inv):
+        XYZ = ut.dot(M=M_CAT02_inv, img=LMS)
+        return XYZ
+
+    def nonLinearCompression(self, LMS_prime, F_L):
+        t = (F_L * LMS_prime / 100)**0.42
+        LMS_a_prime = (400 * t) / (27.13 + t) + 0.1
+        return LMS_a_prime
+
+    def spaceConversion_XYZ_to_HPE(self, XYZ, M_H):
+        LMS_prime = ut.dot(M=M_H, img=XYZ)
+        return LMS_prime
+
+    def hue(self, a, b):
+        h = ut.angle_degree(a, b)
+        return h
+
+    def lightness(self, A, A_white, c, z):
+        J = 100 * (A / A_white)**(c * z)
+        return J
+
+    def chroma(self, t, J, n):
+        C = t**0.9 * (0.01 * J)**0.5 * (1.64 - 0.29**n)**0.73
+        return C
+
+    def achromaticResponse(self, LMS_a_prime, N_bb):
+        A = (2*LMS_a_prime[:, :, 0] + LMS_a_prime[:, :, 1] + 1/20*LMS_a_prime[:, :, 2] - 0.305) * N_bb
+        return A        
+
+    def inverse(self, h, J, C, XYZ_white, L_A, Y_b, s_R):
+        c, N_c, F = self.determineParameters(s_R)
+        n = self.n(Y_b=Y_b, Y_w=XYZ_white[0, 0, 1])
+        N_bb = self.N_bb(n=n)
+        N_cb = self.N_cb(n=n)
+        z = self.z(n=n)
+        LMS_white_c = self.chromaticTransfrom(XYZ=XYZ_white, XYZ_white=XYZ_white, M_CAT02=self.M_CAT02, F=F, L_A=L_A)
+        LMS_white_a_prime = self.compression(LMS=LMS_white_c, M_CAT02_inv=self.M_CAT02_inv, M_H=self.M_H, L_A=L_A)
+        A_white = self.achromaticResponse(LMS_a_prime=LMS_white_a_prime, N_bb=N_bb)
+        t_inv = self.t_inv(C, J, n)
+        e_t = self.e_t(h)
+        A = self.A_inv(A_white=A_white, J=J, c=c, z=z)
+        a, b = self.ab_inv(t=t_inv, e_t=e_t, h=h, A=A, N_c=N_c, N_cb=N_cb, N_bb=N_bb)
+        
+
+        return 
+
+    def t(self, N_c, N_cb, e_t, a, b, LMS_a_prime):
+        result = (50000/13 * N_c * N_cb * e_t * (a**2 + b**2)**0.5) / (LMS_a_prime[:, :, 0] + LMS_a_prime[:, :, 1] + 21/20*LMS_a_prime[:, :, 2])
+        return result
+    
+    def t_inv(self, C, J, n):
+        result = (C / ((0.01 * J)**0.5 * (1.64 - 0.29**n)**0.73))**(1/0.9)
+        return result
+
+    def e_t(self, h):
+        result = 1/4 * (np.cos(np.pi/180 * h + 2) + 3.8)
+        return result
+
+    def A_inv(self, A_white, J, c, z):
+        result = (0.01 * J)**(1 / (c *z)) * A_white
+        return result
+
+    def ab_inv(self, t, e_t, h, A, N_c, N_cb, N_bb):
+        p1 = (50000/13 * N_c * N_cb * e_t) / t 
+        p1 = (A / N_bb) + 0.305
+        p3 = 21 / 20
+        
+        sin_h = np.sin(h)
+        cos_h = np.cos(h)
+        tan_h = np.tan(h)
+        cot_h = 1 / tan_h
+
+        singtcos = np.abs(sin_h) > np.abs(cos_h)
+        sinltcos = ~singtcos
+
+        # sin > cos
+        p4 = p1 / sin_h
+        cb_gt = (p2 * (2 + p3) * (460/1403)) / (p4 + (2 + p3) * (220/1403) * cot_h - (27/1403) + p3 * (6300/1403))
+        ca_gt = cb_gt * cot_h
+        # sin < cos
+        p5 = p1 / cos_h
+        ca_lt = (p2 * (2 + p3) * (460/1403)) / (p5 + (2 + p3) * (220/1403) - ((27/1403) - p3 * (6300/1403)) * tan_h)
+        cb_lt = ca_lt * tan_h
+
+        a = np.zeros(h.shape)
+        b = np.zeros(h.shape)
+
+        a[singtcos] = ca_gt[singtcos]
+        a[sinltcos] = ca_lt[sinltcos]
+
+        b[singtcos] = cb_gt[singtcos]
+        b[sinltcos] = cb_lt[sinltcos]
+
+        return (a, b)
+
+    def LMS_a_prime_e(self, A, a, b, N_bb, M_Aab_to_LMS_a_prime):
+        x = A / N_bb + 0.305
+        xab = np.stack([x, a, b], axis=-1)
+        result = ut.dot(M=M_Aab_to_LMS_a_prime, img=xab)
+        return result
+
+    def LMS_prime_e(self, LMS_a_prime, F_L):
+        result = (100 / F_L) * ((27.13*(LMS_a_prime-0.1)) / (400 - (LMS_a_prime-0.1)))**(1 / 0.42)
+        return result
+
+    def LMS_c_e(self, LMS_prime, M_H_inv, M_CAT02):
+        XYZ_c = ut.dot(M=M_H_inv, img=LMS_prime)
+        result = ut.dot(M=M_CAT02, img=XYZ_c)
+        return result
+
+    def LMS_e(self, LMS_c, LMS_w, D):
+        c = 1 / ((100/LMS_w - 1) * D + 1)
+        result = c * LMS_c
+        return result
+    
+    def XYZ_e(self, LMS, M_CAT02_inv):
+        result = ut.dot(M=M_CAT02_inv, img=LMS)
+        return result
+
+    def n(self, Y_b, Y_w):
+        return Y_b / Y_w
 
     def N_cb(self, n):
         return 0.725 * (1 / n)**0.2
@@ -149,4 +265,3 @@ class CIECAM02:
 
     def z(self, n):
         return 1.48 + n**0.5
-

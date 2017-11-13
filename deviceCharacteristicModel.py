@@ -9,7 +9,7 @@ class DeviceCharacteristicModel:
         self.RGB_linear_low_backlight = None
         self.XYZ_full_backlight = None
         self.XYZ_low_backlight = None
-        self.RGB_white_linear = np.array([1, 1, 1]).reshape((1, -1))
+        self.RGB_white_linear = np.array([1, 1, 1]).reshape((1, 1, -1))
         self.XYZ_white_full_backlight = None
         self.XYZ_white_low_backlight = None
 

@@ -18,7 +18,7 @@ def saveImg(img, fileName):
 def showImg(img):
     # img = np.moveaxis(a=img, source=0, destination=-1)
     img = img.astype(np.uint8)
-    img = cv2.cvtColor(src=img, code=cv2.COLOR_BGR2RGB)
+    # img = cv2.cvtColor(src=img, code=cv2.COLOR_BGR2RGB)
     plt.imshow(X=img)
     plt.show()
     return

@@ -19,11 +19,15 @@ def pow(exponent, img):
     return result
 
 def angle(u, v):
-    inner = np.sum(np.multiply(u, v), axis=-1)
-    outer = np.linalg.norm(np.cross(u, v), axis=-1)
-    ang_rad = np.arctan2(outer, inner)
-    ang = np.degrees(ang_rad)
+    # inner = np.sum(np.multiply(u, v))
+    # outer = np.linalg.norm(np.cross(u, v), axis=-1)
+    ang = np.arctan2(u, v)
     return ang
+
+def angle_degree(u, v):
+    ang = angle(u, v)
+    angDeg = np.mod(np.degrees(ang), 360)
+    return angDeg
 
 
 # def XYZtoLMS(XYZ, M):
