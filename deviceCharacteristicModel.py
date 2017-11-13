@@ -2,29 +2,35 @@ import numpy as np
 import util as ut
 import deviceCharacteristic as dch 
 
-def normalizeRGB(RGB):
-    piexlSum = np.sum(a=RGB, axis=2)
-    RGB_t = np.moveaxis(a=RGB, source=-1, destination=0)
-    RGB_n_t = np.divide(RGB_t, piexlSum)
-    RGB_n = np.moveaxis(a=RGB_n_t, source=0, destination=-1)
-    return RGB_n 
+class DeviceCharacteristicModel:
+    def __init__(self):
+        self.RGB_normalized = None
+        self.RGB_linear_full_backlight = None
+        self.RGB_linear_low_backlight = None
+        self.XYZ_full_backlight = None
+        self.XYZ_low_backlight = None
+        self.RGB_white_linear = np.array([1, 1, 1]).reshape((1, -1))
+        self.XYZ_white_full_backlight = None
+        self.XYZ_white_low_backlight = None
 
-def gammaCorrection(RGB_n, gamma):
-    RGB_l = ut.pow(exponent=gamma, img=RGB_n)
-    return RGB_l
+    def input(self, img):
+        self.RGB_normalized = self.normalizeRGB(RGB=img)
+        self.RGB_linear_full_backlight = self.gammaCorrection(RGB_normalized=self.RGB_normalized, gamma=dch.gamma_full_backlight)
+        self.RGB_linear_low_backlight = self.gammaCorrection(RGB_normalized=self.RGB_normalized, gamma=dch.gamma_low_backlight)
+        self.XYZ_full_backlight = self.spaceConversion_RGB_linear_to_XYZ(RGB_linear=self.RGB_linear_full_backlight, M=dch.M_full_backlight)
+        self.XYZ_low_backlight = self.spaceConversion_RGB_linear_to_XYZ(RGB_linear=self.RGB_linear_low_backlight, M=dch.M_low_backlight)
+        self.XYZ_white_full_backlight = self.spaceConversion_RGB_linear_to_XYZ(RGB_linear=self.RGB_white_linear, M=dch.M_full_backlight)
+        self.XYZ_white_low_backlight = self.spaceConversion_RGB_linear_to_XYZ(RGB_linear=self.RGB_white_linear, M=dch.M_low_backlight)
+        return self
 
-def spaceConversion(RGB_l, M):
-    XYZ = ut.dot(M=M, img=RGB_l)
-    return XYZ
+    def normalizeRGB(self, RGB):
+        RGB_n = np.divide(RGB, 255) 
+        return RGB_n 
 
-def deviceCharacteristicModel(RGB):
-    RGB_n = normalizeRGB(RGB)
-    RGB_l_f = gammaCorrection(RGB_n=RGB_n, gamma=dch.gamma_f)
-    RGB_l_l = gammaCorrection(RGB_n=RGB_n, gamma=dch.gamma_l)
-    XYZ_f = spaceConversion(RGB_l=RGB_l_f, M=dch.M_f)
-    XYZ_l = spaceConversion(RGB_l=RGB_l_l, M=dch.M_l)
-    RGB_w_l = np.array([1, 1, 1])
-    XYZ_w_f = spaceConversion(RGB_l=RGB_w_l, M=dch.M_f)
-    XYZ_w_l = spaceConversion(RGB_l=RGB_w_l, M=dch.M_l)
+    def gammaCorrection(self, RGB_normalized, gamma):
+        RGB_l = ut.pow(exponent=gamma, img=RGB_normalized)
+        return RGB_l
 
-    return (XYZ_f, XYZ_l, XYZ_w_f, XYZ_w_l)
+    def spaceConversion_RGB_linear_to_XYZ(self, RGB_linear, M):
+        XYZ = ut.dot(M=M, img=RGB_linear)
+        return XYZ
