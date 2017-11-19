@@ -32,7 +32,7 @@ def h(a, b):
     return positiveDegree
 
 def J(A, A_white, c, z):
-    result = 100 * (A / A_white)**(c * z)
+    result = 100 * np.abs(A / A_white)**(c * z)
     return result
 
 def e_t(h):

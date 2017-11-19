@@ -5,7 +5,7 @@ import cv2
 def readImg(fileName):
     img = cv2.imread(filename=fileName, flags=cv2.IMREAD_COLOR)
     img = cv2.cvtColor(src=img, code=cv2.COLOR_BGR2RGB)
-    # img = np.moveaxis(a=img, source=-1, destination=0)
+    img = img.astype(np.float16)
     return img
 
 def saveImg(img, fileName):
