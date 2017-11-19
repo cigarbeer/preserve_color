@@ -141,8 +141,8 @@ if __name__ == '__main__':
 
         RGB_result = cvt.denormalizeRGB(RGB_normalized=RGB_normalized_result)
 
-        fName = './result/'+fileName.split('/')[-1].split('.')[0]+'_flag'+str(i)
-        im.saveImg(img=RGB_result, fileName=fName+'.png')
+        fName = './result/'+fileName.split('/')[-1].split('.')[0]
+        im.saveImg(img=RGB_result, fileName=fName+'_e.png')
         im.saveImg(img=cvt.denormalizeRGB(cvt.dimBacklight(RGB=RGB_normalized_result)), fileName=fName+'_dim.png')
 
     im.saveImg(img=cvt.denormalizeRGB(cvt.dimBacklight(RGB=RGB_normalized)), fileName=fileName.split('.')[0]+'_dim.png')
