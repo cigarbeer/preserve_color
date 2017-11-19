@@ -143,6 +143,6 @@ if __name__ == '__main__':
 
         fName = './result/'+fileName.split('/')[-1].split('.')[0]
         im.saveImg(img=RGB_result, fileName=fName+'_e.png')
-        im.saveImg(img=cvt.denormalizeRGB(cvt.dimBacklight(RGB=RGB_normalized_result)), fileName=fName+'_dim.png')
+        im.saveImg(img=cvt.denormalizeRGB(cvt.dimBacklight(RGB=RGB_normalized_result)), fileName=fName+'_e_dim.png')
 
     im.saveImg(img=cvt.denormalizeRGB(cvt.dimBacklight(RGB=RGB_normalized)), fileName=fileName.split('.')[0]+'_dim.png')
