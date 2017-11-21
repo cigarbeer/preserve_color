@@ -76,7 +76,7 @@ def ab_inv(A, h, t, e_t, N_c, N_cb, N_bb):
     ca_gt = cb_gt * cot_h
     # sin < cos
     p5 = np.nan_to_num(p1 / cos_h)
-    ca_lt = (p2 * (2 + p3) * (460/1403)) / (p5 + (2 + p3) * (220/1403) - ((27/1403) + p3 * (6300/1403)) * tan_h)
+    ca_lt = (p2 * (2 + p3) * (460/1403)) / (p5 + (2 + p3) * (220/1403) - ((27/1403) - p3 * (6300/1403)) * tan_h)
     cb_lt = ca_lt * tan_h
 
     a = np.zeros(h.shape)
